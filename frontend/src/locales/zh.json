@@ -1,0 +1,32 @@
+{
+  "layout": {
+    "title": "Pet Eternal Flame",
+    "subtitle": "宠物永恒之焰 · 通过焚烧，助宠物轮回，守护阴阳平衡",
+    "footer": "仅供追思与仪式感，愿每一份陪伴都被铭记"
+  },
+  "form": {
+    "title": "输入离世信息",
+    "deathDateLabel": "宠物离世日期",
+    "required": "*",
+    "petNameLabel": "宠物名字（选填）",
+    "petNamePlaceholder": "如：小白",
+    "submit": "生成祭祀建议",
+    "submitting": "生成中…",
+    "pleaseSelectDate": "请选择离世日期"
+  },
+  "result": {
+    "title": "祭祀建议",
+    "petLabel": "宠物：",
+    "petMonthsIntro": "自离世至今已历 <0>{{count}}</0> 个宠物月（合人年 {{count}} 载）。每月可择吉日焚烧一次。",
+    "suggestedQuantity": "建议焚烧数量",
+    "quantityUnit": "份",
+    "quantityNote": "取吉数以利往生，避不吉之数。",
+    "luckyDates": "建议焚烧吉日",
+    "explanationTitle": "玄学释义"
+  },
+  "error": {
+    "requestFailed": "请求失败",
+    "forbidden": "请求被拒绝，请确认后端已启动且 CORS 正常",
+    "invalidResponse": "响应格式错误"
+  }
+}

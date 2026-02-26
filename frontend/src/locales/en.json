@@ -1,0 +1,32 @@
+{
+  "layout": {
+    "title": "Pet Eternal Flame",
+    "subtitle": "Eternal Flame for Pets · Through ritual, guide their journey and keep balance.",
+    "footer": "For remembrance and ritual. May every bond be remembered."
+  },
+  "form": {
+    "title": "Enter passing details",
+    "deathDateLabel": "Date of passing",
+    "required": "*",
+    "petNameLabel": "Pet name (optional)",
+    "petNamePlaceholder": "e.g. Snowy",
+    "submit": "Generate ritual guide",
+    "submitting": "Generating…",
+    "pleaseSelectDate": "Please select the date of passing"
+  },
+  "result": {
+    "title": "Ritual guide",
+    "petLabel": "Pet: ",
+    "petMonthsIntro": "<0>{{count}}</0> pet-month(s) since passing (as {{count}} human year(s)). You may perform the ritual on an auspicious day each month.",
+    "suggestedQuantity": "Suggested offering amount",
+    "quantityUnit": "portion(s)",
+    "quantityNote": "Auspicious numbers for the journey; avoid inauspicious ones.",
+    "luckyDates": "Suggested auspicious dates",
+    "explanationTitle": "Meaning"
+  },
+  "error": {
+    "requestFailed": "Request failed",
+    "forbidden": "Request denied. Check that the backend is running and CORS is allowed.",
+    "invalidResponse": "Invalid response format"
+  }
+}
