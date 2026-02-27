@@ -1,7 +1,21 @@
-/**
- * 鉴权相关接口占位，后续扩展登录等能力时在此实现。
- * 示例：login(credentials, token?), logout(), getMe(token?)
- */
-// import { request } from '../client'
-// export async function login(body: { username: string; password: string }) { ... }
-// export async function getMe(token: string | null) { ... }
+import { request } from '../client'
+import type { User, LoginRequest, LoginResponse } from '@/types/api'
+
+export async function login(body: LoginRequest): Promise<LoginResponse> {
+  return request<LoginResponse>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+export async function register(body: LoginRequest): Promise<LoginResponse> {
+  return request<LoginResponse>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  })
+}
+
+/** 当前用户信息；token 由 client 自动从 localStorage 附带 */
+export async function getMe(): Promise<{ user: User }> {
+  return request<{ user: User }>('/api/auth/me', { method: 'GET' })
+}

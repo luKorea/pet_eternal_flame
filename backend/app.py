@@ -9,6 +9,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 from translate_zh_en import translate_zh_to_en, translate_zh_to_en_batch
+from db import get_connection, init_db, cursor
+from auth_utils import hash_password, verify_password, encode_token, decode_token
+
+try:
+    import pymysql
+except ImportError:
+    pymysql = None
 
 app = Flask(__name__)
 CORS(
@@ -33,6 +40,11 @@ ERRORS: dict = {
     "deathDate_required": {"zh": "请提供死亡日期 deathDate (YYYY-MM-DD)", "en": "Please provide deathDate (YYYY-MM-DD)."},
     "deathDate_invalid": {"zh": "死亡日期格式无效，请使用 YYYY-MM-DD", "en": "Invalid deathDate format. Use YYYY-MM-DD."},
     "deathDate_future": {"zh": "请选择已过去的日期", "en": "Please select a date in the past."},
+    "auth_username_password_required": {"zh": "请填写用户名和密码", "en": "Username and password are required."},
+    "auth_username_taken": {"zh": "用户名已被使用", "en": "Username already taken."},
+    "auth_invalid_credentials": {"zh": "用户名或密码错误", "en": "Invalid username or password."},
+    "auth_unauthorized": {"zh": "请先登录", "en": "Please log in first."},
+    "auth_db_unavailable": {"zh": "服务暂不可用，请稍后再试", "en": "Service temporarily unavailable. Please try again later."},
 }
 
 # 后端支持的 locale：用于归一化请求中的 locale，扩展时在此增加
@@ -173,9 +185,111 @@ def build_explanation(
     return "".join(parts)
 
 
+def _auth_locale() -> str:
+    data = (request.get_json(silent=True) or {}) if request else {}
+    loc = (data.get("locale") or request.headers.get("Accept-Language", "") or "").strip().lower()
+    if loc:
+        loc = loc.split(",")[0].strip().split("-")[0].lower()
+    return _normalize_locale(loc) if loc else DEFAULT_LOCALE
+
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "service": "pet-eternal-flame"})
+
+
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    """注册：body { username, password, locale? } -> { token, user }"""
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    locale = _auth_locale()
+
+    if not username or not password:
+        return jsonify({"error": _error_message("auth_username_password_required", locale)}), 400
+
+    if len(username) < 2 or len(username) > 64:
+        return jsonify({"error": _error_message("auth_username_password_required", locale)}), 400
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        if pymysql and isinstance(e, pymysql.err.OperationalError):
+            return jsonify({"error": _error_message("auth_db_unavailable", locale)}), 503
+        raise
+    try:
+        with cursor(conn) as cur:
+            cur.execute(
+                "INSERT INTO users (username, password_hash) VALUES (%s, %s)",
+                (username, hash_password(password)),
+            )
+            user_id = cur.lastrowid
+        conn.commit()
+    except Exception as e:
+        if "Duplicate" in str(e) or "1062" in str(e) or "UNIQUE" in str(e):
+            return jsonify({"error": _error_message("auth_username_taken", locale)}), 409
+        if pymysql and isinstance(e, pymysql.err.OperationalError):
+            return jsonify({"error": _error_message("auth_db_unavailable", locale)}), 503
+        raise
+    finally:
+        conn.close()
+
+    token = encode_token(user_id, username)
+    return jsonify({"token": token, "user": {"id": str(user_id), "username": username}})
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    """登录：body { username, password, locale? } -> { token, user }"""
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    locale = _auth_locale()
+
+    if not username or not password:
+        return jsonify({"error": _error_message("auth_username_password_required", locale)}), 400
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        if pymysql and isinstance(e, pymysql.err.OperationalError):
+            return jsonify({"error": _error_message("auth_db_unavailable", locale)}), 503
+        raise
+    try:
+        with cursor(conn) as cur:
+            cur.execute("SELECT id, password_hash FROM users WHERE username = %s", (username,))
+            row = cur.fetchone()
+        if not row or not verify_password(password, row["password_hash"]):
+            return jsonify({"error": _error_message("auth_invalid_credentials", locale)}), 401
+        user_id = row["id"]
+    finally:
+        conn.close()
+
+    token = encode_token(user_id, username)
+    return jsonify({"token": token, "user": {"id": str(user_id), "username": username}})
+
+
+def _current_user():
+    """从 Authorization: Bearer <token> 解析当前用户，失败返回 None。"""
+    auth = request.headers.get("Authorization") or ""
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth[7:].strip()
+    payload = decode_token(token)
+    if not payload:
+        return None
+    return {"id": payload["sub"], "username": payload.get("username", "")}
+
+
+@app.route("/api/auth/me", methods=["GET"])
+def me():
+    """当前用户：Header Authorization: Bearer <token> -> { user }"""
+    user = _current_user()
+    if not user:
+        locale = _normalize_locale(request.headers.get("Accept-Language", "") or "zh")
+        return jsonify({"error": _error_message("auth_unauthorized", locale)}), 401
+    return jsonify({"user": user})
 
 
 @app.route("/api/calculate", methods=["POST"])
@@ -225,4 +339,8 @@ def calculate():
 
 
 if __name__ == "__main__":
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[WARN] 数据库初始化失败（登录/注册不可用）: {e}")
     app.run(host="0.0.0.0", port=5001, debug=True)

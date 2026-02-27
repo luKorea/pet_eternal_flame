@@ -2,11 +2,36 @@
   "layout": {
     "title": "Pet Eternal Flame",
     "subtitle": "宠物永恒之焰 · 通过焚烧，助宠物轮回，守护阴阳平衡",
-    "footer": "仅供追思与仪式感，愿每一份陪伴都被铭记"
+    "footer": "仅供追思与仪式感，愿每一份陪伴都被铭记",
+    "login": "登录",
+    "register": "注册",
+    "logout": "退出"
+  },
+  "theme": {
+    "label": "主题",
+    "light": "浅色",
+    "dark": "深色",
+    "xiaohongshu": "小红书"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "loading": "加载中…",
+    "username": "用户名",
+    "password": "密码",
+    "usernamePlaceholder": "请输入用户名",
+    "passwordPlaceholder": "请输入密码",
+    "noAccount": "还没有账号？去注册",
+    "hasAccount": "已有账号？去登录",
+    "loginSuccess": "登录成功",
+    "registerSuccess": "注册成功",
+    "cancel": "取消",
+    "loginRequired": "请先登录以进入首页"
   },
   "form": {
     "title": "输入离世信息",
     "deathDateLabel": "宠物离世日期",
+    "datePlaceholder": "请选择日期",
     "required": "*",
     "petNameLabel": "宠物名字（选填）",
     "petNamePlaceholder": "如：小白",

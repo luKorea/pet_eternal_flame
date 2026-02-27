@@ -28,6 +28,7 @@ export interface User {
 export interface LoginRequest {
   username: string
   password: string
+  locale?: string
 }
 
 export interface LoginResponse {

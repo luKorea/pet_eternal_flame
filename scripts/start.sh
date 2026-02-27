@@ -10,6 +10,8 @@ if [ ! -d "backend/venv" ]; then
   echo "请先创建后端虚拟环境: cd backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
   exit 1
 fi
+# 确保后端依赖已安装（避免 ModuleNotFoundError: pymysql 等）
+backend/venv/bin/pip install -r backend/requirements.txt -q 2>/dev/null || true
 
 # 启动 Flask（后台）
 echo "启动后端 (Flask :5001)..."

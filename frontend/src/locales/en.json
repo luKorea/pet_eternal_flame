@@ -2,11 +2,36 @@
   "layout": {
     "title": "Pet Eternal Flame",
     "subtitle": "Eternal Flame for Pets · Through ritual, guide their journey and keep balance.",
-    "footer": "For remembrance and ritual. May every bond be remembered."
+    "footer": "For remembrance and ritual. May every bond be remembered.",
+    "login": "Login",
+    "register": "Register",
+    "logout": "Log out"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark",
+    "xiaohongshu": "Xiaohongshu"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "loading": "Loading…",
+    "username": "Username",
+    "password": "Password",
+    "usernamePlaceholder": "Enter username",
+    "passwordPlaceholder": "Enter password",
+    "noAccount": "No account? Register",
+    "hasAccount": "Have an account? Log in",
+    "loginSuccess": "Logged in",
+    "registerSuccess": "Registered",
+    "cancel": "Cancel",
+    "loginRequired": "Please log in to continue"
   },
   "form": {
     "title": "Enter passing details",
     "deathDateLabel": "Date of passing",
+    "datePlaceholder": "Select date",
     "required": "*",
     "petNameLabel": "Pet name (optional)",
     "petNamePlaceholder": "e.g. Snowy",

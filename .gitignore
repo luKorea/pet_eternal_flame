@@ -104,6 +104,9 @@ dist
 # vitepress cache directory
 **/.vitepress/cache
 
+# 开发环境 SQLite 数据库目录
+backend/data/
+
 # Docusaurus cache and generated files
 .docusaurus
 

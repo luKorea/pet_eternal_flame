@@ -1,0 +1,32 @@
+{
+  "light": {
+    "label": "Light",
+    "dark": "#f8fafc",
+    "ink": "#ffffff",
+    "paper": "#1e293b",
+    "gold": "#0ea5e9",
+    "red": "#dc2626",
+    "gradientEnd": "#e2e8f0",
+    "antdAlgorithm": "default"
+  },
+  "dark": {
+    "label": "Dark",
+    "dark": "#1c1917",
+    "ink": "#292524",
+    "paper": "#e7e5e4",
+    "gold": "#d97706",
+    "red": "#dc2626",
+    "gradientEnd": "#0f172a",
+    "antdAlgorithm": "dark"
+  },
+  "xiaohongshu": {
+    "label": "小红书",
+    "dark": "#f5f5f5",
+    "ink": "#ffffff",
+    "paper": "#1f1f1f",
+    "gold": "#ff2442",
+    "red": "#ff2442",
+    "gradientEnd": "#ebebeb",
+    "antdAlgorithm": "default"
+  }
+}

@@ -5,3 +5,60 @@
 body {
   @apply font-serif antialiased;
 }
+
+/* 主题色来自 JS 注入的 :root 变量（见 theme/constants getThemeCssVars） */
+.ritual-form .ant-form-item-label > label {
+  color: rgba(var(--theme-paper-rgb), 0.9);
+}
+.ritual-form .ant-form-item-explain-error {
+  color: var(--theme-error);
+}
+.ant-picker-dropdown {
+  z-index: 1100;
+}
+
+/* 语言/主题下拉箭头：展开时旋转 */
+.ant-select-arrow {
+  transition: transform 0.2s ease;
+}
+.ant-select-open .ant-select-arrow {
+  transform: rotate(180deg);
+}
+
+/* 所有下拉/弹层边框与背景随主题，无阴影 */
+.ant-dropdown .ant-dropdown-menu {
+  border: 1px solid color-mix(in srgb, var(--theme-gold) 35%, transparent);
+  background: var(--theme-ink) !important;
+  border-radius: 8px;
+  box-shadow: none;
+}
+.ant-dropdown .ant-dropdown-menu-item {
+  color: var(--theme-paper);
+}
+.ant-dropdown .ant-dropdown-menu-item:hover {
+  background: color-mix(in srgb, var(--theme-gold) 15%, transparent) !important;
+  color: var(--theme-paper);
+}
+
+/* 用户菜单下拉：大圆角 + 轻微阴影，参考后台头部 */
+.user-menu-dropdown.ant-dropdown .ant-dropdown-menu {
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 4px 0;
+  min-width: 120px;
+}
+.user-menu-dropdown.ant-dropdown .ant-dropdown-menu-item {
+  padding: 8px 12px;
+  margin: 0 4px;
+  border-radius: 8px;
+}
+
+/* 所有控件 focus 时不要 outline */
+[role="combobox"]:focus,
+[role="combobox"]:focus-visible,
+.ant-select-selector:focus,
+.ant-select-selector:focus-visible,
+button:focus,
+button:focus-visible {
+  outline: none;
+}

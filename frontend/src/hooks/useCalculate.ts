@@ -13,8 +13,7 @@ import type { CalculateRequest, CalculateResponse } from '@/types/api'
 
 const RITUAL_KEY_PREFIX = 'ritual'
 
-function ritualFetcher([, deathDate, petName, locale]: [
-  string,
+function ritualFetcher([, deathDate, petName]: [
   string,
   string,
   string,
@@ -22,7 +21,6 @@ function ritualFetcher([, deathDate, petName, locale]: [
   return calculateRitual({
     deathDate,
     petName: petName || undefined,
-    locale,
   })
 }
 
@@ -35,8 +33,6 @@ export function useCalculate() {
 
   const locale = getApiLocale(i18n.language)
   const prevLocaleRef = useRef(locale)
-  // key 含 (deathDate, petName, locale)：SWR 按 key 缓存，相同 key 直接用缓存不重复请求
-  // 例如先请求 zh 再切到 en 会请求一次，再切回 zh 时命中缓存，不再请求
   const key =
     lastSubmitted != null
       ? ([RITUAL_KEY_PREFIX, lastSubmitted.deathDate, lastSubmitted.petName ?? '', locale] as const)
@@ -79,7 +75,6 @@ export function useCalculate() {
 
   const trigger = (payload: CalculateRequest) => {
     setError(null)
-    setResult(null)
     setLastSubmittedParams({
       deathDate: payload.deathDate,
       petName: payload.petName,

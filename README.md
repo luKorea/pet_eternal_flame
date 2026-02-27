@@ -12,7 +12,7 @@
 | 端   | 技术 |
 |------|------|
 | 前端 | React 18 + TypeScript + Vite + TailwindCSS + SWR + Jotai，PC + H5 响应式 |
-| 后端 | Python 3 + Flask + flask-cors |
+| 后端 | Python 3 + Flask + flask-cors；开发环境 SQLite / 生产环境 MySQL；JWT 鉴权 |
 
 ## 本地运行
 
@@ -28,7 +28,16 @@
 
 ### 分别启动
 
-### 1. 后端（Flask）
+### 1. 后端（Flask，开发/生产环境分离）
+
+- **开发环境（默认）**：无需 MySQL，使用 SQLite（`backend/data/dev.db`）。  
+  不设置 `FLASK_ENV` 或设置 `FLASK_ENV=development` 即可。复制 `backend/.env.example` 为 `backend/.env` 可选（仅需配 `JWT_SECRET` 等）。
+- **生产环境**：使用 MySQL。在 `backend/.env` 中设置：
+  - `FLASK_ENV=production`
+  - `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_USER`、`MYSQL_PASSWORD`、`MYSQL_DATABASE`
+  - `JWT_SECRET`（请使用随机长字符串）
+
+启动（首次运行会自动创建 `users` 表）：
 
 ```bash
 cd backend
@@ -62,7 +71,11 @@ pet_eternal_flame/
 ├── docs/
 │   └── PRD.md           # 产品需求文档
 ├── backend/
-│   ├── app.py           # Flask API（/api/health, /api/calculate）
+│   ├── app.py           # Flask API（health, calculate, auth）
+│   ├── config.py        # 环境变量配置（MySQL、JWT）
+│   ├── db.py            # MySQL 连接与 users 表初始化
+│   ├── auth_utils.py    # 密码哈希与 JWT
+│   ├── .env.example     # 环境变量示例（复制为 .env 并填写）
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -84,8 +97,17 @@ pet_eternal_flame/
   健康检查，返回 `{ "status": "ok" }`。
 
 - **POST** `/api/calculate`  
-  请求体：`{ "deathDate": "YYYY-MM-DD", "petName": "可选" }`  
+  请求体：`{ "deathDate": "YYYY-MM-DD", "petName": "可选", "locale": "zh|en" }`  
   响应：`petMonths`, `burningDates`, `suggestedQuantity`, `explanation` 等。
+
+- **POST** `/api/auth/register`  
+  注册。请求体：`{ "username", "password", "locale?": "zh|en" }`，响应：`{ "token", "user": { "id", "username" } }`。
+
+- **POST** `/api/auth/login`  
+  登录。请求体同上，响应同上。
+
+- **GET** `/api/auth/me`  
+  当前用户。Header：`Authorization: Bearer <token>`，响应：`{ "user": { "id", "username" } }`。
 
 ## 构建与部署
 

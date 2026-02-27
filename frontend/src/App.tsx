@@ -1,17 +1,27 @@
-import { Provider } from 'jotai'
-import { Layout } from '@/components/Layout'
-import { RitualForm } from '@/components/RitualForm'
-import { ResultPanel } from '@/components/ResultPanel'
+import { Provider, useAtomValue } from 'jotai'
+import { AntdProvider } from '@/components/AntdProvider'
+import { AuthLoadingScreen } from '@/components/AuthLoadingScreen'
+import { AppRouter } from '@/router'
+import { useAuthInit } from '@/hooks/useAuthInit'
+import { authReadyAtom } from '@/store/atoms'
+
+function AppContent() {
+  useAuthInit()
+  const authReady = useAtomValue(authReadyAtom)
+
+  if (!authReady) {
+    return <AuthLoadingScreen />
+  }
+
+  return <AppRouter />
+}
 
 function App() {
   return (
     <Provider>
-      <Layout>
-        <div className="mx-auto max-w-2xl space-y-8 px-4 py-8 sm:px-6 lg:px-8">
-          <RitualForm />
-          <ResultPanel />
-        </div>
-      </Layout>
+      <AntdProvider>
+        <AppContent />
+      </AntdProvider>
     </Provider>
   )
 }
