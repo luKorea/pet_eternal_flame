@@ -23,7 +23,7 @@ export type ThemePalette = {
   antdAlgorithm: 'default' | 'dark'
 }
 
-const DEFAULT_THEME_ID: ThemeId = 'light'
+const DEFAULT_THEME_ID: ThemeId = 'xiaohongshu'
 
 function hexToRgb(hex: string): string {
   const n = parseInt(hex.slice(1), 16)

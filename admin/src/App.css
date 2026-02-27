@@ -1,0 +1,10 @@
+/* 占位样式：主要布局已在 index.css / DashboardLayout.css 中处理 */
+html,
+body {
+  height: 100%;
+}
+
+#root {
+  min-height: 100%;
+}
+

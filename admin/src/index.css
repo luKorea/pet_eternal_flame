@@ -1,0 +1,82 @@
+:root {
+  /* 运营后台 - 蓝色主色 */
+  --color-primary: #1677ff;
+  --color-primary-hover: #4096ff;
+  --color-primary-active: #0958d9;
+  --color-ink: #1f1f1f;
+  --color-paper: #fafafa;
+  --color-border: #f0f0f0;
+
+  --color-text-primary: var(--color-ink);
+  --color-text-secondary: #666;
+  --color-text-disabled: #999;
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: var(--color-paper);
+  --color-success: #52c41a;
+  --color-warning: #faad14;
+  --color-error: #ff4d4f;
+  --color-info: #1677ff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+}
+.rich-text-editor .ck-editor {
+  border-radius: 6px;
+}
+
+.rich-text-editor .ck-editor__editable_inline {
+  min-height: 200px;
+  padding: 12px;
+}
+
+.rich-text-editor .ck-toolbar {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.rich-text-editor .ck-editor__main > .ck-editor__editable_inline {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Ant Design - 主色与表格 hover */
+.ant-btn-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.ant-btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+.ant-btn-primary:active {
+  background-color: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
+.ant-input:focus,
+.ant-input-focused {
+  border-color: var(--color-primary) !important;
+}
+.ant-select-focused .ant-select-selector {
+  border-color: var(--color-primary) !important;
+}
+.ant-table-row:hover > td {
+  background-color: rgba(22, 119, 255, 0.04) !important;
+}

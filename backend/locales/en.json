@@ -5,7 +5,12 @@
     "footer": "For remembrance and ritual. May every bond be remembered.",
     "login": "Login",
     "register": "Register",
-    "logout": "Log out"
+    "logout": "Log out",
+    "menu": "Menu",
+    "close": "Close",
+    "language": "Language",
+    "theme": "Theme",
+    "account": "Account"
   },
   "theme": {
     "label": "Theme",
@@ -55,3 +60,4 @@
     "invalidResponse": "Invalid response format"
   }
 }
+

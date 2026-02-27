@@ -7,7 +7,7 @@ export const AUTH_TOKEN_KEY = 'pet-eternal-flame-token'
 export const THEME_STORAGE_KEY = 'pet-eternal-flame-theme'
 
 // ----- 主题 -----
-export const themeIdAtom = atomWithStorage<ThemeId>(THEME_STORAGE_KEY, 'light')
+export const themeIdAtom = atomWithStorage<ThemeId>(THEME_STORAGE_KEY, 'xiaohongshu')
 
 // ----- 表单与结果（祭祀计算） -----
 export const deathDateAtom = atom<string>('')

@@ -5,30 +5,46 @@ import { HeaderActions } from '@/components/HeaderActions'
 import { AuthForm } from '@/components/AuthForm'
 import { RedirectIfAuthenticated } from '@/components/RedirectIfAuthenticated'
 import { useThemePalette, getStarryBackgroundStyle } from '@/theme'
+import { useAtomValue } from 'jotai'
+import { themeIdAtom } from '@/store/atoms'
 import { ROUTES } from '@/router'
 
 export function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const palette = useThemePalette()
+  const themeId = useAtomValue(themeIdAtom)
+  const isXiaohongshu = themeId === 'xiaohongshu'
   const [mode, setMode] = useState<'login' | 'register'>('login')
 
   return (
     <RedirectIfAuthenticated>
-    <div className="min-h-screen bg-flame-dark text-flame-paper">
-      <div className="fixed inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-flame-ink via-flame-dark to-flame-gradientEnd" />
-        <div
-          className="absolute inset-0 opacity-25"
-          style={getStarryBackgroundStyle(palette)}
-        />
-        <div
-          className="absolute bottom-0 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-flame-gold/10 blur-3xl"
-          aria-hidden
-        />
-      </div>
+      <div
+        className="min-h-screen text-flame-paper"
+        style={
+          isXiaohongshu
+            ? {
+                background:
+                  'radial-gradient(120% 160% at 10% 20%, #ffe9f0 0%, #fff8f8 35%, #f2f6ff 70%, #ffffff 100%)',
+              }
+            : undefined
+        }
+      >
+        {!isXiaohongshu && (
+          <div className="fixed inset-0 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-flame-ink via-flame-dark to-flame-gradientEnd" />
+            <div
+              className="absolute inset-0 opacity-25"
+              style={getStarryBackgroundStyle(palette)}
+            />
+            <div
+              className="absolute bottom-0 left-1/2 h-48 w-96 -translate-x-1/2 rounded-full bg-flame-gold/10 blur-3xl"
+              aria-hidden
+            />
+          </div>
+        )}
 
-      <div className="relative z-10 flex min-h-screen flex-col">
+        <div className="relative z-10 flex min-h-screen flex-col">
         <header className="flex items-center justify-between border-b border-flame-gold/25 px-4 py-4 sm:px-6">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <span className="shrink-0 rounded-full bg-flame-gold px-4 py-1.5 text-sm font-semibold text-white sm:px-5 sm:py-2 sm:text-base">
@@ -62,8 +78,8 @@ export function LoginPage() {
         <footer className="border-t border-flame-gold/25 py-4 text-center text-xs text-flame-paper/60">
           {t('layout.footer')}
         </footer>
+        </div>
       </div>
-    </div>
     </RedirectIfAuthenticated>
   )
 }

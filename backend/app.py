@@ -11,6 +11,7 @@ from flask_cors import CORS
 from translate_zh_en import translate_zh_to_en, translate_zh_to_en_batch
 from db import get_connection, init_db, cursor
 from auth_utils import hash_password, verify_password, encode_token, decode_token
+from config import IS_PRODUCTION
 
 try:
     import pymysql
@@ -22,7 +23,7 @@ CORS(
     app,
     origins=["*"],
     allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "OPTIONS"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     supports_credentials=False,
 )
 
@@ -115,6 +116,26 @@ def _error_message(key: str, locale: str) -> str:
     """按 locale 返回错误文案，无该语言时回退 zh。"""
     messages = ERRORS.get(key, {})
     return messages.get(locale) or messages.get("zh", "")
+
+
+def _expand_language_rows(rows, field: str) -> dict:
+    """将 language_strings 中的扁平 key（如 layout.title）展开为嵌套对象，方便 C 端直接作为 i18n 资源使用。"""
+    root: dict = {}
+    for r in rows:
+        key = r.get("key") or r.get("`key`") or r.get("KEY") or r.get("Key")
+        if not key:
+            continue
+        value = r.get(field)
+        if value is None:
+            continue
+        parts = str(key).split(".")
+        d = root
+        for p in parts[:-1]:
+            if p not in d or not isinstance(d[p], dict):
+                d[p] = {}
+            d = d[p]
+        d[parts[-1]] = value
+    return root
 
 
 def get_burning_dates(
@@ -239,6 +260,37 @@ def register():
     return jsonify({"token": token, "user": {"id": str(user_id), "username": username}})
 
 
+@app.route("/api/admin/login", methods=["POST"])
+def admin_login():
+    """管理员专用登录接口，与 /api/auth/login 类似，但使用 admins 表并在 JWT 中标记 is_admin。"""
+    data = request.get_json() or {}
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+    locale = _auth_locale()
+
+    if not username or not password:
+        return jsonify({"error": _error_message("auth_username_password_required", locale)}), 400
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        if pymysql and isinstance(e, pymysql.err.OperationalError):
+            return jsonify({"error": _error_message("auth_db_unavailable", locale)}), 503
+        raise
+    try:
+        with cursor(conn) as cur:
+            cur.execute("SELECT id, password_hash FROM admins WHERE username = %s", (username,))
+            row = cur.fetchone()
+        if not row or not verify_password(password, row["password_hash"]):
+            return jsonify({"error": _error_message("auth_invalid_credentials", locale)}), 401
+        admin_id = row["id"]
+    finally:
+        conn.close()
+
+    token = encode_token(admin_id, username, is_admin=True)
+    return jsonify({"token": token, "user": {"id": str(admin_id), "username": username}})
+
+
 @app.route("/api/auth/login", methods=["POST"])
 def login():
     """登录：body { username, password, locale? } -> { token, user }"""
@@ -279,7 +331,482 @@ def _current_user():
     payload = decode_token(token)
     if not payload:
         return None
-    return {"id": payload["sub"], "username": payload.get("username", "")}
+    return {"id": payload["sub"], "username": payload.get("username", ""), "is_admin": payload.get("is_admin", False)}
+
+
+def _current_admin():
+    """仅在当前令牌属于管理员时返回用户信息，否则返回 None。"""
+    u = _current_user()
+    if u and u.get("is_admin"):
+        return u
+    return None
+
+
+# ===== 管理员 API 端点 =====
+
+@app.route("/api/admin/language-strings", methods=["GET"])
+def get_language_strings():
+    """获取所有多语言字符串 (分页或全部)。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    try:
+        with cursor(conn) as cur:
+            # 支持分页参数
+            page = request.args.get("page", 1, type=int)
+            per_page = request.args.get("per_page", 100, type=int)
+            offset = (page - 1) * per_page
+
+            cur.execute(
+                "SELECT id, `key`, zh, en, category, updated_at FROM language_strings ORDER BY id DESC LIMIT %s OFFSET %s",
+                (per_page, offset),
+            )
+            rows = cur.fetchall()
+        
+        return jsonify([dict(row) if not isinstance(row, dict) else row for row in rows]), 200
+    finally:
+        conn.close()
+
+
+@app.route("/api/language-strings", methods=["GET"])
+def public_language_strings():
+    """C 端：获取多语言字符串，结构与原来的 zh.json/en.json 类似。"""
+    locale = _normalize_locale(request.args.get("locale", "zh"))
+    field = "zh" if locale == "zh" else "en"
+    try:
+        conn = get_connection()
+    except Exception:
+        return jsonify({}), 200
+
+    try:
+        with cursor(conn) as cur:
+            cur.execute("SELECT `key`, zh, en FROM language_strings")
+            rows = cur.fetchall()
+        data = _expand_language_rows(rows, field)
+        return jsonify(data), 200
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/language-strings", methods=["POST"])
+def create_language_string():
+    """创建新的多语言字符串。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    key = (data.get("key") or "").strip()
+    zh = (data.get("zh") or "").strip()
+    en = (data.get("en") or "").strip()
+    category = (data.get("category") or "common").strip()
+
+    if not key or not zh or not en:
+        return jsonify({"error": "key, zh, en are required"}), 400
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    try:
+        with cursor(conn) as cur:
+            cur.execute(
+                "INSERT INTO language_strings (`key`, zh, en, category) VALUES (%s, %s, %s, %s)",
+                (key, zh, en, category),
+            )
+        conn.commit()
+        return jsonify({"message": "Created"}), 201
+    except Exception as e:
+        if "Duplicate" in str(e) or "1062" in str(e) or "UNIQUE" in str(e):
+            return jsonify({"error": "key already exists"}), 409
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/language-strings/<int:string_id>", methods=["PUT"])
+def update_language_string(string_id: int):
+    """更新多语言字符串。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json() or {}
+    zh = data.get("zh")
+    en = data.get("en")
+    category = data.get("category")
+
+    if not zh or not en:
+        return jsonify({"error": "zh and en are required"}), 400
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    try:
+        with cursor(conn) as cur:
+            if IS_PRODUCTION:
+                cur.execute(
+                    "UPDATE language_strings SET zh = %s, en = %s, category = %s, updated_at = NOW() WHERE id = %s",
+                    (zh, en, category or "common", string_id),
+                )
+            else:
+                cur.execute(
+                    "UPDATE language_strings SET zh = %s, en = %s, category = %s, updated_at = datetime('now') WHERE id = %s",
+                    (zh, en, category or "common", string_id),
+                )
+        conn.commit()
+        return jsonify({"message": "Updated"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/language-strings/<int:string_id>", methods=["DELETE"])
+def delete_language_string(string_id: int):
+    """删除多语言字符串。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    try:
+        with cursor(conn) as cur:
+            cur.execute("DELETE FROM language_strings WHERE id = %s", (string_id,))
+        conn.commit()
+        return jsonify({"message": "Deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ----- 用户管理 -----
+@app.route("/api/admin/users", methods=["GET"])
+def admin_list_users():
+    """管理员：用户列表，分页与搜索。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 20, type=int), 100)
+    search = (request.args.get("search") or "").strip()
+    offset = (page - 1) * per_page
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            if search:
+                if IS_PRODUCTION:
+                    cur.execute(
+                        "SELECT id, username, created_at FROM users WHERE username LIKE %s ORDER BY id DESC LIMIT %s OFFSET %s",
+                        ("%" + search + "%", per_page, offset),
+                    )
+                else:
+                    cur.execute(
+                        "SELECT id, username, created_at FROM users WHERE username LIKE ? ORDER BY id DESC LIMIT ? OFFSET ?",
+                        ("%" + search + "%", per_page, offset),
+                    )
+            else:
+                cur.execute(
+                    "SELECT id, username, created_at FROM users ORDER BY id DESC LIMIT %s OFFSET %s" if IS_PRODUCTION else
+                    "SELECT id, username, created_at FROM users ORDER BY id DESC LIMIT ? OFFSET ?",
+                    (per_page, offset) if IS_PRODUCTION else (per_page, offset),
+                )
+            rows = cur.fetchall()
+            if search:
+                if IS_PRODUCTION:
+                    cur.execute("SELECT COUNT(*) AS cnt FROM users WHERE username LIKE %s", ("%" + search + "%",))
+                else:
+                    cur.execute("SELECT COUNT(*) AS cnt FROM users WHERE username LIKE ?", ("%" + search + "%",))
+            else:
+                cur.execute("SELECT COUNT(*) AS cnt FROM users")
+            total = cur.fetchone()["cnt"]
+        items = [{"id": r["id"], "username": r["username"], "created_at": r["created_at"]} for r in rows]
+        return jsonify({"items": items, "total": total}), 200
+    finally:
+        conn.close()
+
+
+# ----- 统计 -----
+@app.route("/api/admin/stats", methods=["GET"])
+def admin_stats():
+    """管理员：基础统计（用户总数、今日活跃、计算次数）。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            cur.execute("SELECT COUNT(*) AS cnt FROM users")
+            total_users = cur.fetchone()["cnt"]
+            if IS_PRODUCTION:
+                cur.execute("SELECT COUNT(*) AS cnt FROM calculate_logs WHERE DATE(created_at) = CURDATE()")
+            else:
+                cur.execute("SELECT COUNT(*) AS cnt FROM calculate_logs WHERE date(created_at) = date('now')")
+            today_calculates = cur.fetchone()["cnt"]
+            cur.execute("SELECT COUNT(*) AS cnt FROM calculate_logs")
+            total_calculates = cur.fetchone()["cnt"]
+        return jsonify({
+            "total_users": total_users,
+            "today_calculates": today_calculates,
+            "total_calculates": total_calculates,
+        }), 200
+    finally:
+        conn.close()
+
+
+# ----- 计算日志 -----
+@app.route("/api/admin/calculate-logs", methods=["GET"])
+def admin_calculate_logs():
+    """管理员：计算请求日志，分页。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    page = request.args.get("page", 1, type=int)
+    per_page = min(request.args.get("per_page", 20, type=int), 100)
+    offset = (page - 1) * per_page
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            cur.execute(
+                "SELECT id, user_id, pet_name, death_date, locale, created_at FROM calculate_logs ORDER BY id DESC LIMIT %s OFFSET %s" if IS_PRODUCTION else
+                "SELECT id, user_id, pet_name, death_date, locale, created_at FROM calculate_logs ORDER BY id DESC LIMIT ? OFFSET ?",
+                (per_page, offset) if IS_PRODUCTION else (per_page, offset),
+            )
+            rows = cur.fetchall()
+            cur.execute("SELECT COUNT(*) AS cnt FROM calculate_logs")
+            total = cur.fetchone()["cnt"]
+        items = [dict(r) for r in rows]
+        return jsonify({"items": items, "total": total}), 200
+    finally:
+        conn.close()
+
+
+# ----- 站点设置 -----
+@app.route("/api/admin/settings", methods=["GET"])
+def admin_get_settings():
+    """管理员：获取全部站点设置。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            if IS_PRODUCTION:
+                cur.execute("SELECT `key`, value, updated_at FROM site_settings")
+            else:
+                cur.execute('SELECT "key", value, updated_at FROM site_settings')
+            rows = cur.fetchall()
+        return jsonify({r["key"]: {"value": r["value"], "updated_at": r["updated_at"]} for r in rows}), 200
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/settings", methods=["POST", "PUT"])
+def admin_upsert_setting():
+    """管理员：创建或更新单条设置。body: { key, value }"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    key = (data.get("key") or "").strip()
+    value = data.get("value")
+    if not key:
+        return jsonify({"error": "key is required"}), 400
+    if value is None:
+        value = ""
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            if IS_PRODUCTION:
+                cur.execute(
+                    "INSERT INTO site_settings (`key`, value) VALUES (%s, %s) ON DUPLICATE KEY UPDATE value = VALUES(value), updated_at = NOW()",
+                    (key, str(value)),
+                )
+            else:
+                cur.execute(
+                    'INSERT INTO site_settings ("key", value) VALUES (?, ?) ON CONFLICT("key") DO UPDATE SET value = excluded.value, updated_at = datetime(\'now\')',
+                    (key, str(value)),
+                )
+        conn.commit()
+        return jsonify({"message": "OK"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+# ----- 公告 -----
+@app.route("/api/admin/announcements", methods=["GET"])
+def admin_list_announcements():
+    """管理员：公告列表。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            cur.execute("SELECT id, title, body, locale, active, start_at, end_at, created_at, updated_at FROM announcements ORDER BY id DESC")
+            rows = cur.fetchall()
+        return jsonify([dict(r) for r in rows]), 200
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/announcements", methods=["POST"])
+def admin_create_announcement():
+    """管理员：创建公告。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    title = (data.get("title") or "").strip()
+    body = (data.get("body") or "").strip()
+    locale = (data.get("locale") or "zh").strip() or "zh"
+    active = 1 if data.get("active", True) else 0
+    start_at = data.get("start_at") or None
+    end_at = data.get("end_at") or None
+    if not title:
+        return jsonify({"error": "title is required"}), 400
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            if IS_PRODUCTION:
+                cur.execute(
+                    "INSERT INTO announcements (title, body, locale, active, start_at, end_at) VALUES (%s, %s, %s, %s, %s, %s)",
+                    (title, body, locale, active, start_at, end_at),
+                )
+            else:
+                cur.execute(
+                    "INSERT INTO announcements (title, body, locale, active, start_at, end_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (title, body, locale, active, start_at, end_at),
+                )
+            lid = cur.lastrowid
+        conn.commit()
+        return jsonify({"message": "Created", "id": lid}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/announcements/<int:aid>", methods=["PUT"])
+def admin_update_announcement(aid: int):
+    """管理员：更新公告。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    data = request.get_json() or {}
+    title = data.get("title")
+    body = data.get("body")
+    locale = data.get("locale")
+    active = data.get("active")
+    start_at = data.get("start_at")
+    end_at = data.get("end_at")
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            if IS_PRODUCTION:
+                cur.execute(
+                    "UPDATE announcements SET title = COALESCE(%s, title), body = COALESCE(%s, body), locale = COALESCE(%s, locale), active = COALESCE(%s, active), start_at = %s, end_at = %s, updated_at = NOW() WHERE id = %s",
+                    (title, body, locale, active, start_at, end_at, aid),
+                )
+            else:
+                cur.execute(
+                    "UPDATE announcements SET title = COALESCE(?, title), body = COALESCE(?, body), locale = COALESCE(?, locale), active = COALESCE(?, active), start_at = ?, end_at = ?, updated_at = datetime('now') WHERE id = ?",
+                    (title, body, locale, active, start_at, end_at, aid),
+                )
+        conn.commit()
+        return jsonify({"message": "Updated"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/admin/announcements/<int:aid>", methods=["DELETE"])
+def admin_delete_announcement(aid: int):
+    """管理员：删除公告。"""
+    admin = _current_admin()
+    if not admin:
+        return jsonify({"error": "Unauthorized"}), 401
+    try:
+        conn = get_connection()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    try:
+        with cursor(conn) as cur:
+            cur.execute("DELETE FROM announcements WHERE id = %s" if IS_PRODUCTION else "DELETE FROM announcements WHERE id = ?", (aid,))
+        conn.commit()
+        return jsonify({"message": "Deleted"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/api/announcements", methods=["GET"])
+def public_announcements():
+    """C 端：获取当前生效的公告列表，按 locale 过滤。"""
+    locale = _normalize_locale(request.args.get("locale", "zh"))
+    try:
+        conn = get_connection()
+    except Exception:
+        return jsonify([]), 200
+    try:
+        with cursor(conn) as cur:
+            if IS_PRODUCTION:
+                cur.execute(
+                    "SELECT id, title, body FROM announcements WHERE active = 1 AND locale = %s AND (start_at IS NULL OR start_at <= NOW()) AND (end_at IS NULL OR end_at >= NOW()) ORDER BY id DESC",
+                    (locale,),
+                )
+            else:
+                cur.execute(
+                    "SELECT id, title, body FROM announcements WHERE active = 1 AND locale = ? AND (start_at IS NULL OR start_at <= datetime('now')) AND (end_at IS NULL OR end_at >= datetime('now')) ORDER BY id DESC",
+                    (locale,),
+                )
+            rows = cur.fetchall()
+        out = [{"id": r["id"], "title": r["title"], "body": r["body"]} for r in rows]
+        return jsonify(out), 200
+    finally:
+        conn.close()
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -328,14 +855,45 @@ def calculate():
         descs = translate_zh_to_en_batch([desc for _, desc in burning_dates])
         burning_dates = [(d, descs[i]) for i, (d, _) in enumerate(burning_dates)]
 
-    return jsonify({
+    result = {
         "petMonths": pet_months,
         "deathDate": death_date.isoformat(),
         "petName": pet_name,
         "suggestedQuantity": quantity,
         "burningDates": [{"date": d, "desc": desc} for d, desc in burning_dates],
         "explanation": explanation,
-    })
+    }
+
+    # 记录计算日志（用于运营统计）
+    try:
+        user = _current_user()
+        user_id = None
+        if user and not user.get("is_admin") and user.get("id"):
+            try:
+                user_id = int(user["id"])
+            except (TypeError, ValueError):
+                pass
+        conn = get_connection()
+        try:
+            import json
+            with cursor(conn) as cur:
+                if IS_PRODUCTION:
+                    cur.execute(
+                        "INSERT INTO calculate_logs (user_id, pet_name, death_date, locale, result_json) VALUES (%s, %s, %s, %s, %s)",
+                        (user_id, (pet_name or "")[:128], death_date.isoformat(), locale, json.dumps(result)),
+                    )
+                else:
+                    cur.execute(
+                        "INSERT INTO calculate_logs (user_id, pet_name, death_date, locale, result_json) VALUES (?, ?, ?, ?, ?)",
+                        (user_id, (pet_name or "")[:128], death_date.isoformat(), locale, json.dumps(result)),
+                    )
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception:
+        pass
+
+    return jsonify(result)
 
 
 if __name__ == "__main__":

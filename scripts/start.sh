@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 同时启动后端与前端（后端后台运行，前端前台运行）
+# 同时启动后端、前端与运营后台（后端/前端/运营后台均后台运行，脚本前台 wait）
 
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -18,8 +18,8 @@ echo "启动后端 (Flask :5001)..."
 backend/venv/bin/python backend/app.py &
 BACKEND_PID=$!
 
-# 退出时杀掉后端
-trap "kill $BACKEND_PID 2>/dev/null || true" EXIT
+# 退出时杀掉后端、前端、运营后台
+trap "kill $BACKEND_PID $FRONTEND_PID $ADMIN_PID 2>/dev/null || true" EXIT
 
 # 等待后端就绪
 for i in {1..15}; do
@@ -35,6 +35,19 @@ if [ ! -d "frontend/node_modules" ]; then
   echo "请先安装前端依赖: cd frontend && npm install"
   exit 1
 fi
+# 运营后台：需先 npm install
+if [ ! -d "admin/node_modules" ]; then
+  echo "请先安装运营后台依赖: cd admin && npm install"
+  exit 1
+fi
 
-echo "启动前端 (Vite :3000)..."
-cd frontend && npm run dev
+echo "启动前端 (Vite)..."
+(cd frontend && npm run dev) &
+FRONTEND_PID=$!
+
+echo "启动运营后台 (Vite)..."
+(cd admin && npm run dev) &
+ADMIN_PID=$!
+
+echo "前端与运营后台已启动，按 Ctrl+C 停止全部"
+wait

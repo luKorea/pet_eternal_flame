@@ -14,10 +14,12 @@ def verify_password(password: str, password_hash: str) -> bool:
     return check_password_hash(password_hash, password)
 
 
-def encode_token(user_id: int, username: str) -> str:
+def encode_token(user_id: int, username: str, is_admin: bool = False) -> str:
+    # 将 is_admin 标记写入 payload，以便后续鉴权
     payload = {
         "sub": str(user_id),
         "username": username,
+        "is_admin": is_admin,
         "exp": datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS),
         "iat": datetime.now(timezone.utc),
     }

@@ -40,17 +40,68 @@ body {
   color: var(--theme-paper);
 }
 
-/* 用户菜单下拉：大圆角 + 轻微阴影，参考后台头部 */
-.user-menu-dropdown.ant-dropdown .ant-dropdown-menu {
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  padding: 4px 0;
-  min-width: 120px;
+/* Select 组件选中项背景（与 hover 保持一致） */
+.ant-select-item-option-selected:not(.ant-select-item-option-disabled) {
+  background: color-mix(in srgb, var(--theme-gold) 15%, transparent) !important;
+  color: var(--theme-paper) !important;
 }
-.user-menu-dropdown.ant-dropdown .ant-dropdown-menu-item {
-  padding: 8px 12px;
-  margin: 0 4px;
+
+/* active/focused option when dropdown opens or keyboard navigates
+   全局 active 使用主题色（上面规则），但用户菜单不应默认高亮 */
+.ant-select-item-option-active {
+  background: color-mix(in srgb, var(--theme-gold) 15%, transparent) !important;
+}
+
+/* 用户菜单打开时不希望有默认高亮 */
+.user-menu-select .ant-select-item-option-active {
+  background: transparent !important;
+}
+
+/* 用户菜单使用 Select 组件，定制其下拉样式
+   保留轻微圆角与紧凑内距，其它外观由通用 .ant-select-dropdown 处理 */
+.user-menu-select .ant-select-dropdown {
   border-radius: 8px;
+  padding: 2px 0;
+  min-width: auto;
+}
+.user-menu-select .ant-select-item {
+  padding: 8px 12px;
+  margin: 0;
+}
+
+/* 移动端抽屉内：语言/主题/用户菜单下拉占满宽度 */
+.header-actions-stack .ant-select {
+  width: 100% !important;
+  max-width: 100%;
+}
+.header-actions-stack .ant-select-selector {
+  width: 100% !important;
+}
+
+/* 移动端抽屉：滑入动画 + 与页面一致的深色 */
+.mobile-drawer-overlay {
+  animation: mobile-overlay-in 0.2s ease-out;
+}
+.mobile-drawer {
+  animation: mobile-drawer-in 0.25s ease-out;
+}
+@keyframes mobile-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes mobile-drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+/* 抽屉内 Select 与深色背景一致，避免白底 */
+.header-actions-stack .ant-select .ant-select-selector {
+  background: color-mix(in srgb, var(--theme-gold) 8%, var(--theme-ink)) !important;
+  border-color: color-mix(in srgb, var(--theme-gold) 30%, transparent) !important;
+  color: var(--theme-paper);
+}
+.header-actions-stack .ant-select:hover .ant-select-selector {
+  border-color: color-mix(in srgb, var(--theme-gold) 50%, transparent) !important;
 }
 
 /* 所有控件 focus 时不要 outline */

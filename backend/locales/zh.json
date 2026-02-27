@@ -5,7 +5,12 @@
     "footer": "仅供追思与仪式感，愿每一份陪伴都被铭记",
     "login": "登录",
     "register": "注册",
-    "logout": "退出"
+    "logout": "退出",
+    "menu": "菜单",
+    "close": "关闭",
+    "language": "语言",
+    "theme": "主题",
+    "account": "账号"
   },
   "theme": {
     "label": "主题",
@@ -55,3 +60,4 @@
     "invalidResponse": "响应格式错误"
   }
 }
+

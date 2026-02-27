@@ -1,0 +1,12 @@
+.language-manager {
+  width: 100%;
+}
+
+.language-manager .ant-card {
+  border-radius: 6px;
+}
+
+.language-manager .ant-table-wrapper {
+  margin-top: 0;
+}
+
