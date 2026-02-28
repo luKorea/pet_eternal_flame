@@ -25,7 +25,8 @@ adminApiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_user');
-      window.location.href = '/login';
+      const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+      window.location.href = base ? `${base}/login` : '/login';
     }
     return Promise.reject(error);
   }

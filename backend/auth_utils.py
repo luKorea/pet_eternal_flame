@@ -1,4 +1,6 @@
 """JWT 与密码校验。"""
+from typing import Optional
+
 import jwt
 from datetime import datetime, timedelta, timezone
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -26,7 +28,7 @@ def encode_token(user_id: int, username: str, is_admin: bool = False) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
-def decode_token(token: str) -> dict | None:
+def decode_token(token: str) -> Optional[dict]:
     """解码并校验 JWT（含签名与过期时间 exp）；过期或非法返回 None。"""
     try:
         return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])

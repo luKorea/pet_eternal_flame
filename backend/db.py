@@ -344,7 +344,8 @@ def _init_mysql():
         # seed default admin if none
         with conn.cursor() as cur:
             cur.execute("SELECT COUNT(*) as cnt FROM admins")
-            cnt = cur.fetchone()[0]
+            row = cur.fetchone()
+            cnt = row["cnt"] if isinstance(row, dict) else (row[0] if row else 0)
             if cnt == 0:
                 from auth_utils import hash_password
                 cur.execute(

@@ -27,7 +27,7 @@ export default function App() {
     <Provider>
       <SWRConfig value={swrConfig}>
         <ConfigProvider theme={theme}>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL !== '/' ? import.meta.env.BASE_URL.replace(/\/$/, '') : undefined}>
             <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route

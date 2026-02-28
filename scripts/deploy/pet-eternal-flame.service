@@ -1,0 +1,16 @@
+[Unit]
+Description=Pet Eternal Flame Backend (Gunicorn)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/pet_eternal_flame/backend
+Environment="PATH=/opt/pet_eternal_flame/backend/venv/bin"
+ExecStart=/opt/pet_eternal_flame/backend/venv/bin/gunicorn --bind 127.0.0.1:5001 --workers 2 --timeout 60 --access-logfile - --error-logfile - app:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

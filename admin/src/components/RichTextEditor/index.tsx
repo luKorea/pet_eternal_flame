@@ -1,4 +1,3 @@
-import React from 'react';
 import { CKEditor } from '@ckeditor/ckeditor5-react';
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
@@ -13,6 +12,7 @@ export default function RichTextEditor({ value, onChange }: RichTextEditorProps)
   return (
     <div className="rich-text-editor">
       <CKEditor
+        // @ts-expect-error CKEditor 5 build 类型与 @ckeditor/ckeditor5-react 声明不完全一致
         editor={ClassicEditor}
         data={value || ''}
         onChange={(_, editor) => {

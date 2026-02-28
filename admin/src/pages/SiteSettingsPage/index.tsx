@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Card, Form, Input, Button } from 'antd';
+import { Card, Form, Input, Button, message } from 'antd';
 import useAdminSWR, { mutate, ADMIN_SWR_KEYS, useAdminMutation } from '@/hooks';
 import { fetchSettings, upsertSetting } from '@/api';
 

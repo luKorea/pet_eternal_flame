@@ -3,8 +3,6 @@ import { Card, Table, Input, Space } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import useAdminSWR, { ADMIN_SWR_KEYS } from '@/hooks';
 import { fetchUsers } from '@/api';
-import type { UserListItem } from '@/types/admin';
-
 export default function UserManagement() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');

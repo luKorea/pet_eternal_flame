@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Card, Form, Input, Button, message, Spin } from 'antd';
 import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import { useSetAtom } from 'jotai';
@@ -8,7 +7,6 @@ import { login } from '@/api';
 import './index.css';
 
 export default function LoginPage() {
-  const navigate = useNavigate();
   const setAdminUser = useSetAtom(adminUserAtom);
   const setAdminToken = useSetAtom(adminTokenAtom);
   const [loading, setLoading] = useState(false);
@@ -18,17 +16,18 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const response = await login(values);
-      // Save to localStorage (atoms also persist via atomWithStorage)
       localStorage.setItem('admin_token', response.token);
       localStorage.setItem('admin_user', JSON.stringify(response.user));
-
-      // Update atoms first, then navigate next tick so ProtectedRoute sees new auth state
       setAdminToken(response.token);
       setAdminUser(response.user);
       message.success('登录成功');
-      setTimeout(() => navigate('/dashboard'), 0);
+      // 使用整页跳转，避免部署在子路径 /admin 时 React 路由与 Jotai 状态不同步导致仍被重定向回登录页
+      const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+      const to = base ? `${base}/dashboard` : '/dashboard';
+      window.location.href = to;
     } catch (error: any) {
-      message.error(error.response?.data?.message || '登录失败');
+      const msg = error.response?.data?.error ?? error.response?.data?.message ?? '登录失败';
+      message.error(msg);
     } finally {
       setLoading(false);
     }
